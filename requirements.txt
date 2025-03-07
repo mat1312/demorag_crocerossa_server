@@ -1,0 +1,11 @@
+python-dotenv
+langchain
+langchain-openai
+pinecone-client
+flask
+pinecone
+
+openai
+
+uuid
+logging

@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assistente Croce Rossa Italiana</title>
+  <!-- Bootstrap CSS (lasciato per compatibilità con il widget) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: #f8f9fa;
+    }
+
+    .cri-red {
+      background-color: #e3000f;
+    }
+    
+    .cri-text-red {
+      color: #e3000f;
+    }
+
+    .card-shadow {
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+    
+    .card-shadow:hover {
+      box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+
+    /* Container del widget: centrato orizzontalmente, ancorato in alto */
+    .widget-container {
+      max-width: 600px;
+      min-height: 250px;
+      margin: 0 auto;                /* Centra il container nella pagina */
+      position: relative !important; /* Mantiene la compatibilità col widget */
+      display: flex;                 
+      align-items: flex-start;       /* Posiziona il widget in alto */
+      justify-content: center;       /* Centra orizzontalmente */
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    @media only screen and (max-width: 768px) {
+      .widget-container {
+        width: 90%;
+        min-height: auto;  /* su mobile l'altezza può ridursi */
+      }
+    }
+
+    /* Rimuoviamo i posizionamenti assoluti dal widget */
+    elevenlabs-convai {
+      position: static !important;
+      top: 0 !important;
+      left: 0 !important;
+      transform: none !important;
+      margin: 0 auto !important;
+    }
+    
+    .btn-cri {
+      background-color: #e3000f;
+      color: white;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-cri:hover {
+      background-color: #c1000d;
+      color: white;
+      transform: translateY(-1px);
+    }
+    
+    .section-card {
+      border-radius: 12px;
+      background-color: white;
+      overflow: hidden;
+    }
+    
+    .section-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #eaeaea;
+      background-color: #f8f8f8;
+    }
+    
+    .section-body {
+      padding: 1.5rem;
+    }
+    
+    .input-cri {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      transition: all 0.2s ease;
+    }
+    
+    .input-cri:focus {
+      border-color: #e3000f;
+      box-shadow: 0 0 0 3px rgba(227, 0, 15, 0.2);
+      outline: none;
+    }
+
+    /* Stili per la chat */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 400px;
+      overflow-y: auto;
+      padding: 1rem;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .chat-message {
+      max-width: 80%;
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 1rem;
+    }
+
+    .user-message {
+      align-self: flex-end;
+      background-color: #e3000f;
+      color: white;
+      border-bottom-right-radius: 0.25rem;
+    }
+
+    .bot-message {
+      align-self: flex-start;
+      background-color: #f0f0f0;
+      color: #333;
+      border-bottom-left-radius: 0.25rem;
+    }
+
+    .message-time {
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      opacity: 0.7;
+    }
+
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .typing-dot {
+      width: 8px;
+      height: 8px;
+      margin: 0 1px;
+      background-color: #888;
+      border-radius: 50%;
+      animation: typing 1.5s infinite ease-in-out;
+    }
+
+    .typing-dot:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+      0%, 60%, 100% {
+        transform: translateY(0);
+      }
+      30% {
+        transform: translateY(-5px);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div class="max-w-6xl mx-auto my-8 px-4">
+    <!-- Header con logo e titolo -->
+    <header class="flex flex-col md:flex-row items-center justify-center mb-8">
+      <div class="flex items-center mb-4 md:mb-0">
+        <svg class="w-12 h-12 mr-4" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100" height="100" rx="10" fill="#E3000F"/>
+          <rect x="43" y="20" width="14" height="60" fill="white"/>
+          <rect x="20" y="43" width="60" height="14" fill="white"/>
+        </svg>
+        <h1 class="text-3xl md:text-4xl font-bold cri-text-red">Assistente Croce Rossa Italiana</h1>
+      </div>
+    </header>
+    
+    <!-- Sezione Q&A -->
+    <section id="qa-section" class="section-card card-shadow mb-8">
+      <div class="section-header">
+        <h2 class="text-xl md:text-2xl font-semibold">Fai una domanda alla CRI</h2>
+      </div>
+      <div class="section-body">
+        <!-- Chat Container -->
+        <div id="chat-container" class="chat-container mb-4"></div>
+        
+        <!-- Form per inviare messaggi -->
+        <form id="qa-form" class="flex items-center">
+          <input 
+            type="text" 
+            class="w-full input-cri mr-3" 
+            id="userInput" 
+            placeholder="Es. Come posso diventare volontario?">
+          <button 
+            type="submit" 
+            class="btn-cri font-medium py-2 px-6 rounded-lg flex-shrink-0 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            Invia
+          </button>
+        </form>
+        
+        <!-- Pulsante per resettare la conversazione -->
+        <div class="flex justify-end mt-3">
+          <button 
+            id="btnResetChat" 
+            class="text-gray-600 hover:text-red-600 font-medium py-1 px-3 rounded-lg text-sm flex items-center hover:bg-gray-100">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Nuova conversazione
+          </button>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Sezione Agent Conversazionale ElevenLabs -->
+    <section id="elevenlabs-section" class="section-card card-shadow mb-8">
+      <div class="section-header">
+        <h2 class="text-xl md:text-2xl font-semibold text-center">Agent Conversazionale ElevenLabs</h2>
+      </div>
+      <div class="section-body p-0 bg-gray-50">
+        <!-- Wrapper per centrare il widget sotto il titolo -->
+        <div class="flex justify-center py-4">
+          <div class="widget-container" id="widget-container">
+            <!-- Widget ElevenLabs: sostituisci agent-id se necessario -->
+            <elevenlabs-convai agent-id="j9lr1Zv4W5s6khw0lxK5"></elevenlabs-convai>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Sezione Transcript e Estrazione Contatti -->
+    <section id="transcript-section" class="section-card card-shadow mb-8">
+      <div class="section-header">
+        <h2 class="text-xl md:text-2xl font-semibold">Transcript e Estrazione Contatti</h2>
+      </div>
+      <div class="section-body">
+        <div class="flex flex-wrap -mx-3">
+          <!-- Colonna Transcript -->
+          <div class="w-full md:w-1/2 px-3 mb-6 md:mb-0">
+            <div class="bg-gray-50 p-4 rounded-lg mb-3">
+              <h3 class="font-medium mb-3">Recupera la conversazione</h3>
+              <button 
+                id="btnRetrieve" 
+                class="btn-cri font-medium py-2 px-4 rounded-lg flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                </svg>
+                Scarica transcript
+              </button>
+            </div>
+            <div id="transcript-display" class="bg-white border border-gray-200 rounded-lg p-4 h-64 overflow-y-auto"></div>
+          </div>
+          
+          <!-- Colonna Estrazione Contatti -->
+          <div class="w-full md:w-1/2 px-3">
+            <div class="bg-gray-50 p-4 rounded-lg mb-3">
+              <h3 class="font-medium mb-3">Estrai informazioni utili</h3>
+              <button 
+                id="btnExtract" 
+                class="btn-cri font-medium py-2 px-4 rounded-lg flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Estrai contatti
+              </button>
+            </div>
+            <div id="contact-display" class="bg-white border border-gray-200 rounded-lg p-4 h-64 overflow-y-auto"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="text-center text-gray-500 text-sm py-4">
+      <p>© 2025 Croce Rossa Italiana - Tutti i diritti riservati</p>
+    </footer>
+  </div>
+  
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Fallback for early DOM content to ensure visibility -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Add a simple text content to show the page is loading
+      const mainContainer = document.querySelector('.max-w-6xl');
+      if (mainContainer && mainContainer.innerHTML.trim() === '') {
+        mainContainer.innerHTML = '<div class="text-center p-8"><h2>Caricamento dell\'assistente in corso...</h2></div>';
+      }
+    });
+  </script>
+  
+  <!-- Script del widget ElevenLabs - Load this after page content is visible -->
+  <script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
+  
+  <!-- Script per gestire le chiamate al backend -->
+  <script>
+    // Variabili globali
+    let sessionId = null;
+    let chatContainer = null;
+    
+    // Inizializza la chat
+    function initChat() {
+      // Assicurati che chatContainer sia definito
+      chatContainer = document.getElementById('chat-container');
+      if (!chatContainer) {
+        console.error("Elemento chat-container non trovato");
+        return;
+      }
+      
+      // Genera un nuovo ID di sessione
+      sessionId = 'session-' + Math.random().toString(36).substring(2, 15);
+      
+      // Pulisci la chat
+      chatContainer.innerHTML = '';
+      
+      // Aggiungi un messaggio di benvenuto
+      addBotMessage('Benvenuto! Sono l\'assistente della Croce Rossa Italiana. Come posso aiutarti oggi?');
+    }
+    
+    // Funzione per aggiungere un messaggio dell'utente
+    function addUserMessage(text) {
+      // Verifica che chatContainer esista
+      if (!chatContainer) {
+        console.error("chatContainer non definito in addUserMessage");
+        return;
+      }
+      
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'chat-message user-message';
+      messageDiv.innerHTML = `
+        ${text}
+        <div class="message-time text-right">${time}</div>
+      `;
+      chatContainer.appendChild(messageDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    // Funzione per aggiungere un messaggio del bot
+    function addBotMessage(text, sources = []) {
+      // Verifica che chatContainer esista
+      if (!chatContainer) {
+        console.error("chatContainer non definito in addBotMessage");
+        return;
+      }
+      
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      // Formatta le fonti se presenti
+      let sourcesHTML = '';
+      if (sources && sources.length > 0) {
+        sourcesHTML = '<div class="mt-2 text-xs text-gray-600"><hr class="my-1"><strong>Fonti:</strong><ul class="list-disc ml-4">';
+        for (const source of sources) {
+          sourcesHTML += `<li>${source.file_name || 'Documento sconosciuto'}</li>`;
+        }
+        sourcesHTML += '</ul></div>';
+      }
+      
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'chat-message bot-message';
+      messageDiv.innerHTML = `
+        ${text}
+        ${sourcesHTML}
+        <div class="message-time">${time}</div>
+      `;
+      
+      // Rimuovi l'indicatore di digitazione prima di aggiungere il messaggio
+      const typingIndicator = document.querySelector('.typing-indicator');
+      if (typingIndicator) {
+        typingIndicator.remove();
+      }
+      
+      chatContainer.appendChild(messageDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    // Funzione per mostrare l'indicatore di digitazione
+    function showTypingIndicator() {
+      // Verifica che chatContainer esista
+      if (!chatContainer) {
+        console.error("chatContainer non definito in showTypingIndicator");
+        return;
+      }
+      
+      const indicatorDiv = document.createElement('div');
+      indicatorDiv.className = 'typing-indicator bot-message';
+      indicatorDiv.innerHTML = `
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      `;
+      chatContainer.appendChild(indicatorDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    // Funzione per inviare una domanda al backend
+    async function sendQuestion(question) {
+      try {
+        // Verifica che ci sia una sessione
+        if (!sessionId) {
+          console.error("sessionId non definito in sendQuestion");
+          return;
+        }
+        
+        // Mostra l'indicatore di digitazione
+        showTypingIndicator();
+        
+        // Chiamata API al backend
+        const response = await fetch('/langchain-query', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            query: question,
+            session_id: sessionId
+          })
+        });
+        
+        const data = await response.json();
+        
+        // Aggiungi la risposta al container della chat
+        if (data && data.answer) {
+          addBotMessage(data.answer, data.sources || []);
+        } else if (data && data.error) {
+          addBotMessage('Mi dispiace, si è verificato un errore: ' + data.error);
+        } else {
+          addBotMessage('Mi dispiace, si è verificato un errore durante l\'elaborazione della tua domanda.');
+        }
+      } catch (error) {
+        console.error('Errore nella chiamata API:', error);
+        
+        // Rimuovi l'indicatore di digitazione
+        const typingIndicator = document.querySelector('.typing-indicator');
+        if (typingIndicator) {
+          typingIndicator.remove();
+        }
+        
+        addBotMessage('Mi dispiace, si è verificato un errore di comunicazione con il server.');
+      }
+    }
+    
+    // Assicurati che il DOM sia completamente caricato prima di inizializzare gli event listener
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log("DOM caricato, inizializzazione eventi");
+      
+      // Riferimento al form Q&A
+      const qaForm = document.getElementById('qa-form');
+      if (qaForm) {
+        qaForm.addEventListener('submit', function(e) {
+          e.preventDefault();
+          const userInput = document.getElementById('userInput').value.trim();
+          if (!userInput) return;
+          
+          // Aggiungi il messaggio dell'utente alla chat
+          addUserMessage(userInput);
+          
+          // Invia la domanda al backend
+          sendQuestion(userInput);
+          
+          // Pulisci l'input
+          document.getElementById('userInput').value = '';
+        });
+        console.log("Event listener per form Q&A inizializzato");
+      } else {
+        console.error("Elemento qa-form non trovato");
+      }
+    
+      // Gestione del pulsante per resettare la conversazione
+      const btnResetChat = document.getElementById('btnResetChat');
+      if (btnResetChat) {
+        btnResetChat.addEventListener('click', function() {
+          if (!sessionId) {
+            console.error("sessionId non definito per reset");
+            // Inizializza una nuova sessione se non esiste
+            initChat();
+            return;
+          }
+          
+          // Chiama l'API per resettare la conversazione sul server
+          fetch('/reset-conversation', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              session_id: sessionId
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              // Reinizializza la chat
+              initChat();
+            } else {
+              console.error('Errore nel reset della conversazione:', data.message);
+              alert('Si è verificato un errore nel reset della conversazione.');
+            }
+          })
+          .catch(error => {
+            console.error('Errore nella chiamata API:', error);
+            alert('Si è verificato un errore di comunicazione con il server.');
+          });
+        });
+        console.log("Event listener per pulsante reset inizializzato");
+      } else {
+        console.error("Elemento btnResetChat non trovato");
+      }
+    
+      // Recupera il transcript dalla conversazione ElevenLabs
+      const btnRetrieve = document.getElementById('btnRetrieve');
+      if (btnRetrieve) {
+        btnRetrieve.addEventListener('click', function() {
+          const transcriptDiv = document.getElementById('transcript-display');
+          if (!transcriptDiv) {
+            console.error("Elemento transcript-display non trovato");
+            return;
+          }
+          
+          transcriptDiv.innerHTML = 
+            '<div class="flex items-center justify-center h-full">' +
+            '<svg class="animate-spin h-8 w-8 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">' +
+            '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+            '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>' +
+            '</svg>' +
+            '</div>';
+          
+          fetch('/api/transcript')
+          .then(response => response.json())
+          .then(data => {
+            if (data.transcript_html && data.transcript_html.trim()) {
+              transcriptDiv.innerHTML = 
+                '<div class="px-2">' + 
+                data.transcript_html + 
+                '</div>';
+            } else {
+              transcriptDiv.innerHTML = 
+                '<div class="flex items-center justify-center h-full text-gray-500">' +
+                '<p>Nessuna conversazione disponibile</p>' +
+                '</div>';
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            transcriptDiv.innerHTML = 
+              '<div class="bg-red-50 p-4 rounded-lg border border-red-100 flex items-center">' +
+              '<svg class="w-6 h-6 text-red-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
+              '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />' +
+              '</svg>' +
+              '<div>Errore nel recupero della conversazione.</div>' +
+              '</div>';
+          });
+        });
+        console.log("Event listener per pulsante transcript inizializzato");
+      } else {
+        console.error("Elemento btnRetrieve non trovato");
+      }
+    
+      // Estrazione dei contatti dalla conversazione
+      const btnExtract = document.getElementById('btnExtract');
+      if (btnExtract) {
+        btnExtract.addEventListener('click', function() {
+          const contactDiv = document.getElementById('contact-display');
+          if (!contactDiv) {
+            console.error("Elemento contact-display non trovato");
+            return;
+          }
+          
+          contactDiv.innerHTML = 
+            '<div class="flex items-center justify-center h-full">' +
+            '<svg class="animate-spin h-8 w-8 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">' +
+            '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+            '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>' +
+            '</svg>' +
+            '</div>';
+          
+          fetch('/api/extract_contacts')
+          .then(response => response.json())
+          .then(data => {
+            if (data.contact_info && data.contact_info.trim()) {
+              contactDiv.innerHTML = 
+                '<div class="bg-green-50 p-4 rounded-lg border border-green-100">' +
+                data.contact_info +
+                '</div>';
+            } else {
+              contactDiv.innerHTML = 
+                '<div class="flex items-center justify-center h-full text-gray-500">' +
+                '<p>Nessuna informazione di contatto rilevata</p>' +
+                '</div>';
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            contactDiv.innerHTML = 
+              '<div class="bg-red-50 p-4 rounded-lg border border-red-100 flex items-center">' +
+              '<svg class="w-6 h-6 text-red-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
+              '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />' +
+              '</svg>' +
+              '<div>Errore durante l\'estrazione dei contatti.</div>' +
+              '</div>';
+          });
+        });
+        console.log("Event listener per pulsante estrazione contatti inizializzato");
+      } else {
+        console.error("Elemento btnExtract non trovato");
+      }
+      
+      // Inizializza la chat dopo aver configurato tutti gli event listener
+      initChat();
+      console.log("Chat inizializzata");
+    });
+    
+    // Al termine del caricamento, forziamo il widget a rimanere nel container
+    window.addEventListener('load', () => {
+      console.log("Window caricata, gestione widget ElevenLabs");
+      
+      const observer = new MutationObserver((mutations, obs) => {
+        const widget = document.querySelector('elevenlabs-convai');
+        const container = document.getElementById('widget-container');
+        if (widget && container && widget.parentNode !== container) {
+          console.log("Sposto il widget ElevenLabs nel container corretto");
+          container.appendChild(widget);
+        }
+      });
+      
+      // Osserva il DOM per catturare quando il widget viene caricato/inserito
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+      
+      // Controllo iniziale
+      const widget = document.querySelector('elevenlabs-convai');
+      const container = document.getElementById('widget-container');
+      if (widget && container && widget.parentNode !== container) {
+        console.log("Inizializzazione widget ElevenLabs");
+        container.appendChild(widget);
+      }
+    });
+  </script>
+</body>
+</html>
