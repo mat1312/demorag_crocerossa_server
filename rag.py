@@ -570,35 +570,10 @@ def query_rag(query: str, session_id: Optional[str] = None) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    # Assicurati che la directory static esista
-    static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
-    if not os.path.exists(static_dir):
-        os.makedirs(static_dir)
-        logger.info(f"Creata directory 'static': {static_dir}")
+    # Imposta la porta dinamica per Railway
+    port = int(os.environ.get("PORT", 5000))
     
-    # Controlla che index.html esista nella directory static
-    index_path = os.path.join(static_dir, 'index.html')
-    if not os.path.exists(index_path):
-        logger.warning(f"File 'index.html' non trovato in {static_dir}. Assicurati di crearlo prima di avviare l'applicazione.")
-    
-    # Esempio di utilizzo diretto
-    try:
-        print("Inizializzazione del sistema RAG...")
-        system = get_rag_system()
-        
-        query = "Quali sono le attività principali della Croce Rossa?"
-        print("Elaborazione della query di test:", query)
-        
-        response = system.answer_question(query, session_id="test-session-123")
-        
-        print("\nDomanda:", query)
-        print("\nRisposta:", response["answer"])
-        print("\nFonti utilizzate:", [s.get("file_name", "sconosciuta") for s in response.get("sources", [])])
-        
-        # Avvia il server Flask per gestire le richieste webhook
-        print("\nAvvio del server webhook sulla porta 5000...")
-        print(f"Accedi all'applicazione web su http://localhost:5000")
-        app.run(host='0.0.0.0', port=5000, debug=False)
-    except Exception as e:
-        logger.error(f"Errore nell'avvio dell'applicazione: {str(e)}")
-        print(f"Errore nell'avvio dell'applicazione: {str(e)}")
+    # Log porta attuale
+    logger.info(f"Avvio del server sulla porta {port}...")
+
+    app.run(host="0.0.0.0", port=port)
