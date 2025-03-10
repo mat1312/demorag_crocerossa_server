@@ -6,7 +6,7 @@ fastapi
 pinecone
 
 openai
-gunicorn
+uvicorn
 
 uuid
 logging
