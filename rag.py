@@ -363,12 +363,13 @@ class RAGSystem:
     async def elevenlabs_webhook_handler(self, request_data: ElevenLabsWebhook) -> Dict[str, Any]:
         """
         Gestisce le richieste webhook da ElevenLabs.
+        Restituisce i top 3 chunk più pertinenti invece di passarli all'LLM.
         
         Args:
             request_data: I dati della richiesta webhook
             
         Returns:
-            La risposta formattata per ElevenLabs
+            La risposta formattata per ElevenLabs con i chunk più pertinenti
         """
         try:
             # Log della richiesta
@@ -385,16 +386,26 @@ class RAGSystem:
                     "conversation_id": conversation_id
                 }
             
-            # Processa la query con il sistema RAG
-            result = await self.answer_question(input_text, session_id=conversation_id)
+            # Recupera i documenti rilevanti (limitati a 3)
+            documents = self.retrieve_relevant_documents(input_text)[:3]
+            
+            if not documents:
+                logger.warning("Nessun documento recuperato per la query")
+                return {
+                    "text": "Non ho trovato informazioni pertinenti alla tua domanda.",
+                    "conversation_id": conversation_id
+                }
+            
+            # Formatta i documenti in un contesto (utilizza la funzione esistente)
+            chunks_text = self.format_retrieved_documents(documents)
             
             # Formatta la risposta per ElevenLabs
             response = {
-                "text": result["answer"],
+                "text": chunks_text,
                 "conversation_id": conversation_id
             }
             
-            logger.info(f"Inviata risposta webhook per conversation_id: {conversation_id}")
+            logger.info(f"Inviata risposta webhook con i top 3 chunk per conversation_id: {conversation_id}")
             return response
             
         except Exception as e:
