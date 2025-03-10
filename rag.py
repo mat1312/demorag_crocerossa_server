@@ -8,9 +8,14 @@ from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
 from pinecone import Pinecone as PineconeClient
-from flask import Flask, request, jsonify, send_from_directory, render_template
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import uuid
 import logging
+from pathlib import Path
 
 # Configura il logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -37,6 +42,18 @@ DEFAULT_TOP_K = 5
 
 # Dizionario per memorizzare le conversazioni attive
 active_conversations = {}
+
+# Definizione dei modelli Pydantic per gli input e output API
+class Query(BaseModel):
+    query: str
+    session_id: Optional[str] = None
+    
+class SessionReset(BaseModel):
+    session_id: str
+    
+class ElevenLabsWebhook(BaseModel):
+    text: str = ""
+    conversation_id: Optional[str] = None
 
 class RAGSystem:
     """
@@ -259,7 +276,7 @@ class RAGSystem:
         
         return "\n".join(formatted_docs)
     
-    def answer_question(
+    async def answer_question(
         self, 
         question: str, 
         session_id: Optional[str] = None
@@ -343,7 +360,7 @@ class RAGSystem:
                 "session_id": session_id
             }
     
-    def elevenlabs_webhook_handler(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def elevenlabs_webhook_handler(self, request_data: ElevenLabsWebhook) -> Dict[str, Any]:
         """
         Gestisce le richieste webhook da ElevenLabs.
         
@@ -358,8 +375,8 @@ class RAGSystem:
             logger.info(f"Ricevuta richiesta webhook da ElevenLabs: {request_data}")
             
             # Estrai i dati dalla richiesta di ElevenLabs
-            input_text = request_data.get("text", "")
-            conversation_id = request_data.get("conversation_id", str(uuid.uuid4()))
+            input_text = request_data.text
+            conversation_id = request_data.conversation_id or str(uuid.uuid4())
             
             if not input_text:
                 logger.warning("Ricevuta richiesta webhook senza testo")
@@ -369,7 +386,7 @@ class RAGSystem:
                 }
             
             # Processa la query con il sistema RAG
-            result = self.answer_question(input_text, session_id=conversation_id)
+            result = await self.answer_question(input_text, session_id=conversation_id)
             
             # Formatta la risposta per ElevenLabs
             response = {
@@ -385,7 +402,7 @@ class RAGSystem:
             logger.error(error_msg)
             return {
                 "text": "Mi dispiace, si è verificato un errore durante l'elaborazione della richiesta.",
-                "conversation_id": request_data.get("conversation_id", str(uuid.uuid4()))
+                "conversation_id": conversation_id
             }
     
     def reset_conversation(self, session_id: str) -> Dict[str, Any]:
@@ -443,8 +460,8 @@ def create_rag_system(
     )
 
 
-# Crea un'app Flask per gestire le richieste webhook
-app = Flask(__name__, static_folder='static')
+# Inizializza l'app FastAPI
+app = FastAPI(title="RAG System API", description="API per il sistema RAG della Croce Rossa")
 
 # Inizializza il sistema RAG (lazy initialization)
 rag_system = None
@@ -461,100 +478,82 @@ def get_rag_system():
         rag_system = create_rag_system()
     return rag_system
 
+# Configurazione CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Consenti tutte le origini (in produzione limitare alle origini necessarie)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configura i file statici
+static_files_dir = Path("static")
+if static_files_dir.exists():
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Route principale per servire l'index.html
-@app.route('/')
-def index():
+@app.get("/")
+async def index():
     """
     Serve la pagina principale dell'applicazione.
     """
-    return send_from_directory('static', 'index.html')
+    if (static_files_dir / "index.html").exists():
+        return FileResponse("static/index.html")
+    return {"message": "API RAG System attiva"}
 
-# Route per servire qualsiasi file statico
-@app.route('/<path:path>')
-def serve_static(path):
-    """
-    Serve i file statici richiesti.
-    """
-    return send_from_directory('static', path)
-
-@app.route('/elevenlabs-webhook', methods=['POST'])
-def elevenlabs_webhook():
+@app.post("/elevenlabs-webhook")
+async def elevenlabs_webhook(data: ElevenLabsWebhook):
     """
     Endpoint webhook per ElevenLabs.
     """
-    if request.method == 'POST':
-        # Recupera i dati dalla richiesta
-        data = request.json
-        logger.info(f"Ricevuta richiesta a /elevenlabs-webhook: {data}")
-        
-        # Processa con il sistema RAG
-        response = get_rag_system().elevenlabs_webhook_handler(data)
-        
-        # Restituisci la risposta
-        return jsonify(response)
+    logger.info(f"Ricevuta richiesta a /elevenlabs-webhook: {data}")
+    response = await get_rag_system().elevenlabs_webhook_handler(data)
+    return response
 
 
-@app.route('/langchain-query', methods=['POST'])
-def langchain_query():
+@app.post("/langchain-query")
+async def langchain_query(query_data: Query):
     """
     Endpoint per query dirette da LangChain.
     """
-    if request.method == 'POST':
-        data = request.json
-        logger.info(f"Ricevuta richiesta a /langchain-query: {data}")
-        
-        query = data.get('query', '')
-        session_id = data.get('session_id', str(uuid.uuid4()))
-        
-        response = get_rag_system().answer_question(query, session_id)
-        
-        return jsonify(response)
+    logger.info(f"Ricevuta richiesta a /langchain-query: {query_data}")
+    
+    response = await get_rag_system().answer_question(query_data.query, query_data.session_id)
+    
+    return response
 
 
-@app.route('/reset-conversation', methods=['POST'])
-def reset_conversation():
+@app.post("/reset-conversation")
+async def reset_conversation(session_data: SessionReset):
     """
     Endpoint per resettare una conversazione.
     """
-    if request.method == 'POST':
-        data = request.json
-        logger.info(f"Ricevuta richiesta a /reset-conversation: {data}")
-        
-        session_id = data.get('session_id', '')
-        
-        if not session_id:
-            return jsonify({
-                "status": "error",
-                "message": "Session ID non fornito"
-            })
-        
-        response = get_rag_system().reset_conversation(session_id)
-        
-        return jsonify(response)
+    logger.info(f"Ricevuta richiesta a /reset-conversation: {session_data}")
+    
+    response = get_rag_system().reset_conversation(session_data.session_id)
+    
+    return response
 
 # Endpoint di compatibilità per API transcript e contatti
-@app.route('/api/transcript', methods=['GET'])
-def get_transcript():
+@app.get("/api/transcript")
+async def get_transcript():
     """
     Endpoint per recuperare la trascrizione della conversazione.
     Funzione stub per compatibilità con il frontend.
     """
-    return jsonify({
-        "transcript_html": "<p>Funzionalità transcript non ancora implementata.</p>"
-    })
+    return {"transcript_html": "<p>Funzionalità transcript non ancora implementata.</p>"}
 
-@app.route('/api/extract_contacts', methods=['GET'])
-def extract_contacts():
+@app.get("/api/extract_contacts")
+async def extract_contacts():
     """
     Endpoint per estrarre i contatti dalla conversazione.
     Funzione stub per compatibilità con il frontend.
     """
-    return jsonify({
-        "contact_info": "<p>Funzionalità di estrazione contatti non ancora implementata.</p>"
-    })
+    return {"contact_info": "<p>Funzionalità di estrazione contatti non ancora implementata.</p>"}
 
 # Funzione per l'utilizzo diretto tramite import
-def query_rag(query: str, session_id: Optional[str] = None) -> Dict[str, Any]:
+async def query_rag(query: str, session_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Funzione per interrogare direttamente il sistema RAG.
     Utile per l'integrazione con altri sistemi.
@@ -566,14 +565,17 @@ def query_rag(query: str, session_id: Optional[str] = None) -> Dict[str, Any]:
     Returns:
         La risposta del sistema RAG
     """
-    return get_rag_system().answer_question(query, session_id)
+    return await get_rag_system().answer_question(query, session_id)
 
 
 if __name__ == "__main__":
+    import uvicorn
+    
     # Imposta la porta dinamica per Railway
     port = int(os.environ.get("PORT", 5000))
     
     # Log porta attuale
     logger.info(f"Avvio del server sulla porta {port}...")
 
-    app.run(host="0.0.0.0", port=port)
+    # Avvia il server uvicorn con il nome del file corrente
+    uvicorn.run("rag:app", host="0.0.0.0", port=port, reload=True)

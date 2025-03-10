@@ -2,10 +2,11 @@ python-dotenv
 langchain
 langchain-openai
 pinecone-client
-flask
+fastapi
 pinecone
 
 openai
+gunicorn
 
 uuid
 logging
